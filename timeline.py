@@ -47,7 +47,7 @@ class TimeLine:
     def draw(self, surface, font="Yanone Kaffeesatz Thin", fontSize=0.03,
              lineWidth=0.003, lineColor=(0, 0, 0), textSep=0.01,
              coarseness=4, timeframe=datetime.timedelta(days=50),
-             tickHeight=0.01, start=datetime.date(2020, 2, 15),
+             tickHeight=0.01, start=datetime.datetime(2020, 2, 15),
              monthTextSep=0.04):
         context = self.context()
         context.select_font_face(font)
@@ -56,9 +56,8 @@ class TimeLine:
         context.set_source_rgb(*lineColor)
 
         self._horizontal_line(context)
-        self._vertical_steps(context, coarseness, timeframe, textSep,
-                             tickHeight, start, monthTextSep)
-        return self
+        return self._vertical_steps(context, coarseness, timeframe, textSep,
+                                    tickHeight, start, monthTextSep)
     def _horizontal_line(self, context):
         context.move_to(0, 0)
         context.line_to(1, 0)
@@ -79,14 +78,19 @@ class TimeLine:
             context.move_to(i * dx, -tickHeight - textSep - monthTextSep)
             if i - 1 < 0 or days[i - 1][1] < days[i][1]:
                 context.show_text(calendar.month_abbr[days[i][1]])
+        return dict([((t.day, t.month), (t - start).days * dt)
+                     for t in rrule(DAILY,
+                                    dtstart=start,
+                                    until=(start + timeframe))])
     def context(self, width=None, height=None):
         context = self.surface.context(width, height, scale=self.scale)
         context.translate(*self.translation)
         return context
 class Tasks:
-    def __init__(self, timeline, heading, vPos=0.05,
+    def __init__(self, timeline, xPositions, heading, vPos=0.05,
                  headingFont="Yanone Kaffeesatz Bold",
                  headingFontSize=0.025):
+        self.xPositions = xPositions
         self.context = self._set_heading(timeline.context(),
                                          heading, headingFont,
                                          headingFontSize, vPos)
@@ -102,8 +106,10 @@ class Tasks:
         context.move_to(-width - padding, 0)
         context.show_text(heading)
         return context
-    def add_task(self, text, vPos=0.15, font="Yanone Kaffeesatz Thin",
+    def add_task(self, text, time,
+                 vPos=0.05, font="Yanone Kaffeesatz Thin",
                  linewidth=0.001, taskFontSize=0.02):
+        x = self.xPositions[time]
         y = vPos + self.height
         self.height += vPos
 
@@ -112,16 +118,24 @@ class Tasks:
         self.context.set_line_width(linewidth)
         xbearing, ybearing, width, height, dx, dy = \
                 self.context.text_extents(text)
-        self.context.move_to(0, 0)
-        self.context.line_to(0, y - height)
+        #self.context.set_dash([0.02, 0.01])
+        self.context.set_source_rgb(0.8, 0.8, 0.8)
+        self.context.move_to(x, 0)
+        self.context.line_to(x, y - height)
         self.context.stroke()
-        self.context.move_to(0, y)
+        self.context.set_source_rgb(0, 0, 0)
+        self.context.move_to(x, y)
         self.context.show_text(text)
         return self
 def main():
     with Surface() as surface:
-        timeline = TimeLine(surface.add_title(surface)).draw(surface)
-        Tasks(timeline, "Heading 1").add_task("Text 1A").add_task("Text 1B")
-        Tasks(timeline, "Heading 2", vPos=0.4).add_task("Text 2A").add_task("Text2B")
+        timeline = TimeLine(surface.add_title(surface))
+        xPositions = timeline.draw(surface)
+        h1 = Tasks(timeline, xPositions, "Heading 1")
+        h2 = Tasks(timeline, xPositions, "Heading 2", vPos=0.4)
+        h1.add_task("Text 1A", (15, 2))
+        h1.add_task("Text 1C", (19, 2))
+        h2.add_task("Text 2A", (1, 3))
+        h2.add_task("Text 2B", (2, 3))
 if __name__ == "__main__":
     main()
