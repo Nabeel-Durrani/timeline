@@ -3,17 +3,17 @@ import cairo
 import calendar
 import datetime
 from dateutil.rrule import rrule, MONTHLY, DAILY
-
+TITLE = "Timeline Title"
 TASKS = \
     (("Heading 1",
-      (("Text 1A", (15, 2)),
-       ("Text 1B", (19, 2), 0.05),
-       ("Text 1C", (20, 2)),
-       ("Text 1D", (23, 2)))),
+      (("Task\nnewline", "1A", (15, 2)),
+       ("Task", "1B", (19, 2), True, 0.05),
+       ("Task", "1C", (20, 2)),
+       ("Task", "1D", (23, 2)))),
      ("Heading 2",
-      (("Text 2A", (1, 3)),
-       ("Text 2B", (2, 3)),
-       ("Text 2D", (3, 3)))))
+      (("Task", "2A", (1, 3)),
+       ("Task", "2B", (2, 3), True),
+       ("Task", "2C", (3, 3)))))
 class Surface:
     def __init__(self, bgcolor=(1, 1, 1), fname="out",
                  # A3 @ 72 PPI (pixels)
@@ -39,7 +39,7 @@ class Surface:
         context.scale(scale * (width  or self.width),
                       scale * (height or self.height))
         return context
-    def add_title(self, surface, title="Timeline Title",
+    def add_title(self, surface, title,
                   font="Utopia", fontSize=0.04, translation=(0.01, 0.05)):
             context = surface.context()
             context.set_source_rgb(0, 0, 0)
@@ -116,33 +116,44 @@ class Tasks:
         context.move_to(-width - padding, 0)
         context.show_text(heading)
         return context
-    def add_task(self, text, time, vPos=None,
+    def add_task(self, text, annotation, time, milestone=False, vPos=None,
                  vSpacing=0.05, font="Yanone Kaffeesatz Thin",
-                 linewidth=0.001, taskFontSize=0.02):
+                 lineWidth=0.001, taskFontSize=0.02, render="lines"):
+        self.context.select_font_face(font, cairo.FONT_SLANT_NORMAL,
+                                      cairo.FONT_WEIGHT_BOLD if milestone else
+                                      cairo.FONT_WEIGHT_NORMAL)
+        self.context.set_font_size(taskFontSize * (1.2 if milestone else 1))
         x, y = self.xPositions[time], vPos or self.height
         self.height = y + vSpacing
-        self.context.select_font_face(font)
-        self.context.set_font_size(taskFontSize)
-        self.context.set_line_width(linewidth)
         xbearing, ybearing, width, height, dx, dy = \
                 self.context.text_extents(text)
-        #self.context.set_dash([0.02, 0.01])
+        if render == "lines":
+            self._set_task_line(x, y, height, lineWidth)
+        elif render == "text":
+            self._set_task_text(text, annotation, x, y, height)
+        return self.height
+    def _set_task_line(self, x, y, height, lineWidth):
         self.context.set_source_rgb(0.8, 0.8, 0.8)
+        self.context.set_line_width(lineWidth)
         self.context.move_to(x, 0)
         self.context.line_to(x, y - height)
         self.context.stroke()
+    def _set_task_text(self, text, annotation, x, y0, height, lineSpacing=1.5):
         self.context.set_source_rgb(0, 0, 0)
-        self.context.move_to(x, y)
-        self.context.show_text(text)
-        return self.height
+        y = y0
+        for line in  (text + '\n' + annotation).splitlines():
+            self.context.move_to(x, y)
+            self.context.show_text(line)
+            y += height * lineSpacing
 def main():
     with Surface() as surface:
-        timeline = TimeLine(surface.add_title(surface))
+        timeline = TimeLine(surface.add_title(surface, TITLE))
         xPositions = timeline.draw(surface)
-        vPos = 0.05
-        for heading in TASKS:
-            h = Tasks(timeline, xPositions, heading[0], vPos)
-            for task in heading[1]:
-                vPos = h.add_task(*task)
+        for render in ("lines", "text"):
+            vPos = 0.05
+            for heading in TASKS:
+                h = Tasks(timeline, xPositions, heading[0], vPos)
+                for task in heading[1]:
+                    vPos = h.add_task(*task, render=render)
 if __name__ == "__main__":
     main()
