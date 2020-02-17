@@ -4,6 +4,16 @@ import calendar
 import datetime
 from dateutil.rrule import rrule, MONTHLY, DAILY
 
+TASKS = \
+    (("Heading 1",
+      (("Text 1A", (15, 2)),
+       ("Text 1B", (19, 2), 0.05),
+       ("Text 1C", (20, 2)),
+       ("Text 1D", (23, 2)))),
+     ("Heading 2",
+      (("Text 2A", (1, 3)),
+       ("Text 2B", (2, 3)),
+       ("Text 2D", (3, 3)))))
 class Surface:
     def __init__(self, bgcolor=(1, 1, 1), fname="out",
                  # A3 @ 72 PPI (pixels)
@@ -94,7 +104,7 @@ class Tasks:
         self.context = self._set_heading(timeline.context(),
                                          heading, headingFont,
                                          headingFontSize, vPos)
-        self.height = 0
+        self.height = 0.05
     def _set_heading(self, context, heading, headingFont, headingFontSize,
                      vPos, padding=0.03):
         context.set_source_rgb(0, 0, 0)
@@ -106,13 +116,11 @@ class Tasks:
         context.move_to(-width - padding, 0)
         context.show_text(heading)
         return context
-    def add_task(self, text, time,
-                 vPos=0.05, font="Yanone Kaffeesatz Thin",
+    def add_task(self, text, time, vPos=None,
+                 vSpacing=0.05, font="Yanone Kaffeesatz Thin",
                  linewidth=0.001, taskFontSize=0.02):
-        x = self.xPositions[time]
-        y = vPos + self.height
-        self.height += vPos
-
+        x, y = self.xPositions[time], vPos or self.height
+        self.height = y + vSpacing
         self.context.select_font_face(font)
         self.context.set_font_size(taskFontSize)
         self.context.set_line_width(linewidth)
@@ -126,16 +134,15 @@ class Tasks:
         self.context.set_source_rgb(0, 0, 0)
         self.context.move_to(x, y)
         self.context.show_text(text)
-        return self
+        return self.height
 def main():
     with Surface() as surface:
         timeline = TimeLine(surface.add_title(surface))
         xPositions = timeline.draw(surface)
-        h1 = Tasks(timeline, xPositions, "Heading 1")
-        h2 = Tasks(timeline, xPositions, "Heading 2", vPos=0.4)
-        h1.add_task("Text 1A", (15, 2))
-        h1.add_task("Text 1C", (19, 2))
-        h2.add_task("Text 2A", (1, 3))
-        h2.add_task("Text 2B", (2, 3))
+        vPos = 0.05
+        for heading in TASKS:
+            h = Tasks(timeline, xPositions, heading[0], vPos)
+            for task in heading[1]:
+                vPos = h.add_task(*task)
 if __name__ == "__main__":
     main()
