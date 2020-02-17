@@ -4,6 +4,9 @@ import calendar
 import datetime
 from dateutil.rrule import rrule, MONTHLY, DAILY
 TITLE = "Timeline Title"
+ANNOTATIONS = ((("Annotation Example 1\nnewline1\nnewline2", 0.5, 0.1),
+                ((0.5, 0.15, 0.4, 0.175),)),
+               (("Annotation Example 2", 0.3, 0.1), ()))
 TASKS = \
     (("Heading 1",
       (("Task\nnewline", "1A", (15, 2)),
@@ -15,6 +18,32 @@ TASKS = \
       (("Task", "2A", (1, 3), 10),
        ("Task", "2B", (2, 3), 0, True),
        ("Task", "2C", (3, 3)))))
+class Annotation:
+    def __init__(self, surface, font="Yanone Kaffeesatz Thin", fontSize=0.015,
+                 color=(1, 0, 0), lineWidth=0.001):
+        self.context = surface.context()
+        self.context.set_source_rgb(*color)
+        self.context.select_font_face(font)
+        self.context.set_font_size(fontSize)
+        self.context.set_line_width(lineWidth)
+        for a in ANNOTATIONS:
+            for line in a[1]:
+                self.draw_line(*line)
+        for a in ANNOTATIONS:
+            if a[0] != ():
+                self.add_text(*a[0])
+    def add_text(self, text, x, y0, lineSpacing=1.5):
+        xbearing, ybearing, width, height, dx, dy = \
+                self.context.text_extents(text)
+        y = y0
+        for line in  text.splitlines():
+            self.context.move_to(x, y)
+            self.context.show_text(line)
+            y += height * lineSpacing
+    def draw_line(self, x0, y0, x1, y1):
+        self.context.move_to(x0, y0)
+        self.context.line_to(x1, y1)
+        self.context.stroke()
 class Surface:
     def __init__(self, bgcolor=(1, 1, 1), fname="out",
                  # A3 @ 72 PPI (pixels)
@@ -117,23 +146,6 @@ class Tasks:
         context.move_to(-width - padding, 0)
         context.show_text(heading)
         return context
-    def add_task(self, text, annotation, time, duration=0, milestone=False,
-                 vPos=None, vSpacing=0.05, font="Yanone Kaffeesatz Thin",
-                 lineWidth=0.001, taskFontSize=0.02, render="lines"):
-        self.context.select_font_face(font, cairo.FONT_SLANT_NORMAL,
-                                      cairo.FONT_WEIGHT_BOLD if milestone else
-                                      cairo.FONT_WEIGHT_NORMAL)
-        self.context.set_font_size(taskFontSize * (1.2 if milestone else 1))
-        x, y = self.xPositions[time], vPos or self.height
-        self.height = y + vSpacing
-        xbearing, ybearing, width, height, dx, dy = \
-                self.context.text_extents(text)
-        if render == "lines":
-            self._set_task_line(time, duration, x, y, height, lineWidth,
-                                milestone)
-        elif render == "text":
-            self._set_task_text(text, annotation, x, y, height)
-        return self.height
     def _set_task_line(self, time, duration, x, y, height, lineWidth,
                        milestone):
         self.context.set_source_rgb(0.8, 0.8, 0.8)
@@ -156,9 +168,28 @@ class Tasks:
             self.context.move_to(x, y)
             self.context.show_text(line)
             y += height * lineSpacing
+    def add_task(self, text, annotation, time, duration=0, milestone=False,
+                 vPos=None, vSpacing=0.05, font="Yanone Kaffeesatz Thin",
+                 lineWidth=0.001, taskFontSize=0.02, render="lines"):
+        self.context.select_font_face(font, cairo.FONT_SLANT_NORMAL,
+                                      cairo.FONT_WEIGHT_BOLD if milestone else
+                                      cairo.FONT_WEIGHT_NORMAL)
+        self.context.set_font_size(taskFontSize * (1.2 if milestone else 1))
+        x, y = self.xPositions[time], vPos or self.height
+        self.height = y + vSpacing
+        xbearing, ybearing, width, height, dx, dy = \
+                self.context.text_extents(text)
+        if render == "lines":
+            self._set_task_line(time, duration, x, y, height, lineWidth,
+                                milestone)
+        elif render == "text":
+            self._set_task_text(text, annotation, x, y, height)
+        return self.height
 def main():
     with Surface() as surface:
-        timeline = TimeLine(surface.add_title(surface, TITLE))
+        surface = surface.add_title(surface, TITLE)
+        Annotation(surface)
+        timeline = TimeLine(surface)
         xPositions = timeline.draw(surface)
         for render in ("lines", "text"):
             vPos = 0.05
