@@ -7,12 +7,13 @@ TITLE = "Timeline Title"
 TASKS = \
     (("Heading 1",
       (("Task\nnewline", "1A", (15, 2)),
-       ("Task", "1B", (19, 2), True, 0.05),
-       ("Task", "1C", (20, 2)),
-       ("Task", "1D", (23, 2)))),
+       ("Task", "1B", (19, 2), 2, True, 0.05), # duration 2 will be ignored
+       ("Task", "1C", (20, 2), 3),
+       ("Task", "1D", (23, 2)),
+       ("Task", "1E", (23, 2)))),
      ("Heading 2",
-      (("Task", "2A", (1, 3)),
-       ("Task", "2B", (2, 3), True),
+      (("Task", "2A", (1, 3), 10),
+       ("Task", "2B", (2, 3), 0, True),
        ("Task", "2C", (3, 3)))))
 class Surface:
     def __init__(self, bgcolor=(1, 1, 1), fname="out",
@@ -116,8 +117,8 @@ class Tasks:
         context.move_to(-width - padding, 0)
         context.show_text(heading)
         return context
-    def add_task(self, text, annotation, time, milestone=False, vPos=None,
-                 vSpacing=0.05, font="Yanone Kaffeesatz Thin",
+    def add_task(self, text, annotation, time, duration=0, milestone=False,
+                 vPos=None, vSpacing=0.05, font="Yanone Kaffeesatz Thin",
                  lineWidth=0.001, taskFontSize=0.02, render="lines"):
         self.context.select_font_face(font, cairo.FONT_SLANT_NORMAL,
                                       cairo.FONT_WEIGHT_BOLD if milestone else
@@ -128,16 +129,26 @@ class Tasks:
         xbearing, ybearing, width, height, dx, dy = \
                 self.context.text_extents(text)
         if render == "lines":
-            self._set_task_line(x, y, height, lineWidth)
+            self._set_task_line(time, duration, x, y, height, lineWidth,
+                                milestone)
         elif render == "text":
             self._set_task_text(text, annotation, x, y, height)
         return self.height
-    def _set_task_line(self, x, y, height, lineWidth):
+    def _set_task_line(self, time, duration, x, y, height, lineWidth,
+                       milestone):
         self.context.set_source_rgb(0.8, 0.8, 0.8)
         self.context.set_line_width(lineWidth)
         self.context.move_to(x, 0)
         self.context.line_to(x, y - height)
         self.context.stroke()
+        if duration > 0 and not milestone:
+            self.context.set_line_width(lineWidth * 5)
+            end = datetime.datetime(2020, time[1], time[0]) + \
+                  datetime.timedelta(days=duration)
+            self.context.move_to(x, y - height - 5 * lineWidth)
+            self.context.line_to(self.xPositions[(end.day, end.month)],
+                                 y - height - 5 * lineWidth)
+            self.context.stroke()
     def _set_task_text(self, text, annotation, x, y0, height, lineSpacing=1.5):
         self.context.set_source_rgb(0, 0, 0)
         y = y0
