@@ -3,6 +3,7 @@ import cairo
 import calendar
 import datetime
 from dateutil.rrule import rrule, MONTHLY, DAILY
+# Examples
 TITLE = "Timeline Title"
 ANNOTATIONS = ((("Annotation Example 1\nnewline1\nnewline2", 0.5, 0.1),
                 ((0.5, 0.15, 0.4, 0.175),)),
@@ -19,17 +20,18 @@ TASKS = \
        ("Task", "2B", (2, 3), 0, True),
        ("Task", "2C", (3, 3)))))
 class Annotation:
-    def __init__(self, surface, font="Yanone Kaffeesatz Thin", fontSize=0.015,
+    def __init__(self, surface, annotations,
+                 font="Yanone Kaffeesatz Thin", fontSize=0.015,
                  color=(1, 0, 0), lineWidth=0.001):
         self.context = surface.context()
         self.context.set_source_rgb(*color)
         self.context.select_font_face(font)
         self.context.set_font_size(fontSize)
         self.context.set_line_width(lineWidth)
-        for a in ANNOTATIONS:
+        for a in annotations:
             for line in a[1]:
                 self.draw_line(*line)
-        for a in ANNOTATIONS:
+        for a in annotations:
             if a[0] != ():
                 self.add_text(*a[0])
     def add_text(self, text, x, y0, lineSpacing=1.5):
@@ -84,26 +86,12 @@ class TimeLine:
     def __init__(self, surface, translation=(0.25, 0.25), scale=0.7):
         self.surface = surface
         self.translation, self.scale = translation, scale
-    def draw(self, surface, font="Yanone Kaffeesatz Thin", fontSize=0.03,
-             lineWidth=0.003, lineColor=(0, 0, 0), textSep=0.01,
-             coarseness=4, timeframe=datetime.timedelta(days=50),
-             tickHeight=0.01, start=datetime.datetime(2020, 2, 15),
-             monthTextSep=0.04):
-        context = self.context()
-        context.select_font_face(font)
-        context.set_font_size(fontSize)
-        context.set_line_width(lineWidth)
-        context.set_source_rgb(*lineColor)
-
-        self._horizontal_line(context)
-        return self._vertical_steps(context, coarseness, timeframe, textSep,
-                                    tickHeight, start, monthTextSep)
     def _horizontal_line(self, context):
         context.move_to(0, 0)
         context.line_to(1, 0)
         context.stroke()
     def _vertical_steps(self, context, coarseness, timeframe, textSep,
-                        tickHeight, start, monthTextSep):
+                        tickHeight, start, monthTextSep, tickLabelInterval):
         dt = 1 / float(timeframe.days)
         dx = float(coarseness) * dt
         days = [(t.day, t.month) for t in rrule(DAILY, interval=coarseness,
@@ -114,14 +102,30 @@ class TimeLine:
             context.line_to(i * dx,  tickHeight)
             context.stroke()
             context.move_to(i * dx, -tickHeight - textSep)
-            context.show_text(str(days[i][0]))
+            if i % tickLabelInterval == 0:
+                context.show_text(str(days[i][0]))
             context.move_to(i * dx, -tickHeight - textSep - monthTextSep)
-            if i - 1 < 0 or days[i - 1][1] < days[i][1]:
+            if (i - 1 < 0) or (days[i - 1][1] < days[i][1]):
                 context.show_text(calendar.month_abbr[days[i][1]])
         return dict([((t.day, t.month), (t - start).days * dt)
                      for t in rrule(DAILY,
                                     dtstart=start,
                                     until=(start + timeframe))])
+    def draw(self, surface, font="Yanone Kaffeesatz Thin", fontSize=0.03,
+             lineWidth=0.003, lineColor=(0, 0, 0), textSep=0.01,
+             coarseness=2, timeframe=datetime.timedelta(days=45),
+             tickHeight=0.01, start=datetime.datetime(2020, 2, 15),
+             monthTextSep=0.04, tickLabelInterval=2):
+        context = self.context()
+        context.select_font_face(font)
+        context.set_font_size(fontSize)
+        context.set_line_width(lineWidth)
+        context.set_source_rgb(*lineColor)
+
+        self._horizontal_line(context)
+        return self._vertical_steps(context, coarseness, timeframe, textSep,
+                                    tickHeight, start, monthTextSep,
+                                    tickLabelInterval)
     def context(self, width=None, height=None):
         context = self.surface.context(width, height, scale=self.scale)
         context.translate(*self.translation)
@@ -185,17 +189,17 @@ class Tasks:
         elif render == "text":
             self._set_task_text(text, annotation, x, y, height)
         return self.height
-def main():
+def main(title, annotations, tasks):
     with Surface() as surface:
-        surface = surface.add_title(surface, TITLE)
-        Annotation(surface)
+        surface = surface.add_title(surface, title)
+        Annotation(surface, annotations)
         timeline = TimeLine(surface)
         xPositions = timeline.draw(surface)
         for render in ("lines", "text"):
             vPos = 0.05
-            for heading in TASKS:
+            for heading in tasks:
                 h = Tasks(timeline, xPositions, heading[0], vPos)
                 for task in heading[1]:
                     vPos = h.add_task(*task, render=render)
 if __name__ == "__main__":
-    main()
+    main(TITLE, ANNOTATIONS, TASKS)
