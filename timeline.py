@@ -3,24 +3,6 @@ import cairo
 import calendar
 import datetime
 from dateutil.rrule import rrule, MONTHLY, DAILY
-# Examples
-TITLE = "Timeline Title"
-ANNOTATIONS = ((("Annotation Example 1\nnewline1\nnewline2", 0.5, 0.1),
-                ((0.5, 0.15, 0.4, 0.175),)),
-               (("Annotation Example 2", 0.3, 0.1), ()))
-TASKS = \
-    (("Heading 1",
-      (("Task\nnewline", "1A", (15, 2)),
-       ("Task", "1B", (19, 2), 2, True, 0.05), # duration 2 will be ignored
-       ("Task", "1C", (20, 2), 3),
-       ("Task", "1D", (23, 2)),
-       ("Task", "1E", (23, 2)))),
-     ("Heading 2",
-      (("Task", "2A", (1, 3), 10),
-       ("Task", "2B", (2, 3), 0, True),
-       ("Task", "2C", (3, 3)))),
-     ("Heading 3",
-      (("Task (No Annotation)", "", (1, 3), 20),)))
 class Annotation:
     def __init__(self, surface, annotations,
                  font="Yanone Kaffeesatz Thin", fontSize=0.015,
@@ -202,15 +184,52 @@ class Tasks:
         elif render == "text":
             self._set_task_text(text, annotation, x, y, height)
         return self.height
-def main(title, annotations, tasks, vPos0=0.05):
+def fix_month(month, milestone):
+    return lambda duration=0: \
+           lambda name, date, annotation="", vPos=None: (name, annotation,
+                                                         (date, month),
+                                                         duration, milestone,
+                                                         vPos)
+def milestone(month):
+    return fix_month(month, True)()
+def task(month):
+    return lambda name, date, duration=0, \
+                  annotation="": fix_month(month, False)(duration)(name, date,
+                                                                   annotation)
+def draw_all(title, annotations, tasks, vPos0=0.05,
+             xTranslate=0.25, yTranslate=0.25, lowerTimelinePadding=0.1):
     with Surface() as surface:
         surface = surface.add_title(surface, title)
         Annotation(surface, annotations)
-        timeline = TimeLine(surface)
+        timeline = TimeLine(surface, translation=(xTranslate, yTranslate))
         xPositions = timeline.draw(surface)
         vPos = vPos0
         for heading in tasks:
             vPos += Tasks(timeline, xPositions, heading[0],
                           vPos, vPos0)(heading[1])
+        TimeLine(surface, translation=(xTranslate,
+                                       lowerTimelinePadding
+                                       + yTranslate + vPos)).draw(surface)
+def examples():
+    m2, m3 = milestone(2), milestone(3)
+    t2, t3 = task(2), task(3)
+    title = "Timeline Title"
+    annotations = ((("Annotation Example 1\nnewline1\nnewline2", 0.5, 0.1),
+                    ((0.5, 0.15, 0.4, 0.175),)),
+                   (("Annotation Example 2", 0.3, 0.1), ()))
+    tasks = \
+        (("Heading 1", # helper functions not used for heading 1
+          (("Task\nnewline", "1A", (15, 2)),
+          ("Task", "1B", (19, 2), 11, True, 0.05), # duration 11 will be ignored
+          ("Task", "1C", (20, 2), 3),
+          ("Task", "1D", (23, 2)),
+          ("Task", "1E", (23, 2)))), # helper functions used below
+        ("Heading 2",
+         (t3("Task", 1, 10, "2A"),
+          m3("Task", 2, "2B"),
+          t3("Task", 3, 0, "2C"))),
+        ("Heading 3",
+         (m3("Task", 1),)))
+    draw_all(title, annotations, tasks)
 if __name__ == "__main__":
-    main(TITLE, ANNOTATIONS, TASKS)
+    examples()
