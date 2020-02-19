@@ -18,7 +18,9 @@ TASKS = \
      ("Heading 2",
       (("Task", "2A", (1, 3), 10),
        ("Task", "2B", (2, 3), 0, True),
-       ("Task", "2C", (3, 3)))))
+       ("Task", "2C", (3, 3)))),
+     ("Heading 3",
+      (("Task (No Annotation)", "", (1, 3), 20),)))
 class Annotation:
     def __init__(self, surface, annotations,
                  font="Yanone Kaffeesatz Thin", fontSize=0.015,
@@ -131,14 +133,25 @@ class TimeLine:
         context.translate(*self.translation)
         return context
 class Tasks:
-    def __init__(self, timeline, xPositions, heading, vPos=0.05,
-                 headingFont="Yanone Kaffeesatz Bold",
+    def __init__(self, timeline, xPositions, heading, vPos=None,
+                 vPos0=0.05, headingFont="Yanone Kaffeesatz Bold",
                  headingFontSize=0.025):
+        if vPos == None:
+            vPos = vPos0
+        self.height = self.vPos0 = vPos0
         self.xPositions = xPositions
         self.context = self._set_heading(timeline.context(),
                                          heading, headingFont,
                                          headingFontSize, vPos)
-        self.height = 0.05
+    def __call__(self, tasks):
+        for x in (("lines", lambda : None),
+                  ("text", self._reset_height)):
+            x[1]()
+            for task in tasks:
+                vPos = self.add_task(*task, render=x[0])
+        return vPos
+    def _reset_height(self):
+        self.height = self.vPos0
     def _set_heading(self, context, heading, headingFont, headingFontSize,
                      vPos, padding=0.03):
         context.set_source_rgb(0, 0, 0)
@@ -189,17 +202,15 @@ class Tasks:
         elif render == "text":
             self._set_task_text(text, annotation, x, y, height)
         return self.height
-def main(title, annotations, tasks):
+def main(title, annotations, tasks, vPos0=0.05):
     with Surface() as surface:
         surface = surface.add_title(surface, title)
         Annotation(surface, annotations)
         timeline = TimeLine(surface)
         xPositions = timeline.draw(surface)
-        for render in ("lines", "text"):
-            vPos = 0.05
-            for heading in tasks:
-                h = Tasks(timeline, xPositions, heading[0], vPos)
-                for task in heading[1]:
-                    vPos = h.add_task(*task, render=render)
+        vPos = vPos0
+        for heading in tasks:
+            vPos += Tasks(timeline, xPositions, heading[0],
+                          vPos, vPos0)(heading[1])
 if __name__ == "__main__":
     main(TITLE, ANNOTATIONS, TASKS)
