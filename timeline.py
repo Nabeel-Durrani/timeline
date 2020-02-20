@@ -56,7 +56,7 @@ class Surface:
                       scale * (height or self.height))
         return context
     def add_title(self, surface, title,
-                  font="Utopia", fontSize=0.04, translation=(0.01, 0.05)):
+                  font="Utopia", fontSize=0.04, translation=(0.1, 0.05)):
             context = surface.context()
             context.set_source_rgb(0, 0, 0)
             context.move_to(translation[0], translation[1])
@@ -88,8 +88,9 @@ class TimeLine:
             context.move_to(i * dx, -tickHeight - textSep)
             if i % tickLabelInterval == 0:
                 context.show_text(str(days[i][0]))
-            context.move_to(i * dx, -tickHeight - textSep - monthTextSep)
             if (i - 1 < 0) or (days[i - 1][1] < days[i][1]):
+                context.move_to(max(i * dx - (days[i][0] - 1) * dt, 0),
+                                -tickHeight - textSep - monthTextSep)
                 context.show_text(calendar.month_abbr[days[i][1]])
         return dict([((t.day, t.month), (t - start).days * dt)
                      for t in rrule(DAILY,
