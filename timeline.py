@@ -186,17 +186,26 @@ class Tasks:
             self._set_task_text(text, annotation, x, y, height)
         return self.height
 def fix_month(month, milestone):
-    return lambda duration=0: \
+    return lambda expected=None, pessimistic=None, optimistic=None: \
            lambda name, date, annotation="", vPos=None: (name, annotation,
                                                          (date, month),
-                                                         duration, milestone,
+                                                         ((pessimistic
+                                                           or expected
+                                                           or 0)
+                                                          + 4 * (expected or 0)
+                                                          + (optimistic
+                                                             or expected
+                                                             or 0)) / 6,
+                                                         milestone,
                                                          vPos)
 def milestone(month):
     return fix_month(month, True)()
 def task(month):
-    return lambda name, date, duration=0, \
-                  annotation="": fix_month(month, False)(duration)(name, date,
-                                                                   annotation)
+    return lambda name, date, annotation="", \
+                  expected=None, pessimistic=None, optimistic=None: \
+                  fix_month(month, False)(expected,
+                                          pessimistic,
+                                          optimistic)(name, date, annotation)
 def draw_all(title, annotations, tasks, vPos0=0.05,
              xTranslate=0.25, yTranslate=0.25, lowerTimelinePadding=0.1):
     with Surface() as surface:
@@ -226,9 +235,11 @@ def examples():
           ("Task", "1D", (23, 2)),
           ("Task", "1E", (23, 2)))), # helper functions used below
         ("Heading 2",
-         (t3("Task", 1, 10, "2A"),
-          m3("Task", 2, "2B"),
-          t3("Task", 3, 0, "2C"))),
+         (t3("Task", 1, "2A", 10, 10, 10), # 3 ways to get duration=10
+          t3("Task", 1, "2B", 10, 5, 15),
+          t3("Task", 1, "2C", 10),
+          m3("Task", 2, "2D"),
+          t3("Task", 3, "2E"))),
         ("Heading 3",
          (m3("Task", 1),)))
     draw_all(title, annotations, tasks)
