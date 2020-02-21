@@ -202,10 +202,11 @@ def milestone(month):
     return fix_month(month, True)()
 def task(month):
     return lambda name, date, annotation="", \
-                  expected=None, pessimistic=None, optimistic=None: \
+                  expected=None, pessimistic=None, optimistic=None, vPos=None: \
                   fix_month(month, False)(expected,
                                           pessimistic,
-                                          optimistic)(name, date, annotation)
+                                          optimistic)(name, date, annotation,
+                                                      vPos)
 def draw_all(title, annotations, tasks, vPos0=0.05,
              xTranslate=0.25, yTranslate=0.25, lowerTimelinePadding=0.1):
     with Surface() as surface:
