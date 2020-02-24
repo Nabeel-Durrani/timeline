@@ -121,20 +121,20 @@ class Tasks:
                  headingFontSize=0.025):
         if vPos == None:
             vPos = vPos0
-        self.height = self.vPos0 = vPos0
+        self.maxHeight = self.height = self.vPos0 = vPos0
         self.xPositions = xPositions
         self.context = self._set_heading(timeline.context(),
                                          heading, headingFont,
                                          headingFontSize, vPos)
     def __call__(self, tasks):
-        for x in (("lines", lambda : None),
+        for x in (("lines", lambda: None),
                   ("text", self._reset_height)):
             x[1]()
             for task in tasks:
                 vPos = self.add_task(*task, render=x[0])
         return vPos
     def _reset_height(self):
-        self.height = self.vPos0
+        self.height = self.maxHeight = self.vPos0
     def _set_heading(self, context, heading, headingFont, headingFontSize,
                      vPos, padding=0.03):
         context.set_source_rgb(0, 0, 0)
@@ -161,13 +161,15 @@ class Tasks:
             self.context.line_to(self.xPositions[(end.day, end.month)],
                                  y - height - 5 * lineWidth)
             self.context.stroke()
-    def _set_task_text(self, text, annotation, x, y0, height, lineSpacing=1.5):
+    def _set_task_text(self, text, annotation, x, y0, height, lineSpacing=1.5,
+                       padding=0.03):
         self.context.set_source_rgb(0, 0, 0)
         y = y0
-        for line in  (text + '\n' + annotation).splitlines():
+        for line in (text + '\n' + annotation).splitlines():
             self.context.move_to(x, y)
             self.context.show_text(line)
             y += height * lineSpacing
+        return y + padding
     def add_task(self, text, annotation, time, duration=0, milestone=False,
                  vPos=None, vSpacing=0.05, font="Yanone Kaffeesatz Thin",
                  lineWidth=0.001, taskFontSize=0.02, render="lines"):
@@ -176,15 +178,18 @@ class Tasks:
                                       cairo.FONT_WEIGHT_NORMAL)
         self.context.set_font_size(taskFontSize * (1.2 if milestone else 1))
         x, y = self.xPositions[time], vPos or self.height
-        self.height = y + vSpacing
         xbearing, ybearing, width, height, dx, dy = \
-                self.context.text_extents(text)
+                self.context.text_extents(text.splitlines()[0])
+        self.height = y + vSpacing
         if render == "lines":
+            self.height = self._set_task_text(text, annotation, x, y, height)
             self._set_task_line(time, duration, x, y, height, lineWidth,
                                 milestone)
         elif render == "text":
-            self._set_task_text(text, annotation, x, y, height)
-        return self.height
+            self.height = self._set_task_text(text, annotation, x, y, height)
+        if self.height > self.maxHeight:
+            self.maxHeight = self.height
+        return self.maxHeight
 def fix_month(month, milestone):
     return lambda expected=None, pessimistic=None, optimistic=None: \
            lambda name, date, annotation="", vPos=None: (name, annotation,
@@ -208,19 +213,27 @@ def task(month):
                                           optimistic)(name, date, annotation,
                                                       vPos)
 def draw_all(title, annotations, tasks, vPos0=0.05,
-             xTranslate=0.25, yTranslate=0.25, lowerTimelinePadding=0.1):
+             xTranslate=0.25, yTranslate=0.25, lowerTimelinePadding=0.1,
+             start=(2020, 2, 15), timeframe=45):
     with Surface() as surface:
         surface = surface.add_title(surface, title)
         Annotation(surface, annotations)
         timeline = TimeLine(surface, translation=(xTranslate, yTranslate))
-        xPositions = timeline.draw(surface)
+        xPositions = timeline.draw(surface,
+                                   start=datetime.datetime(*start),
+                                   timeframe=datetime.timedelta(days=timeframe))
         vPos = vPos0
         for heading in tasks:
             vPos += Tasks(timeline, xPositions, heading[0],
                           vPos, vPos0)(heading[1])
-        TimeLine(surface, translation=(xTranslate,
-                                       lowerTimelinePadding
-                                       + yTranslate + vPos)).draw(surface)
+        bottomTimeLine = TimeLine(surface,
+                                  translation=(xTranslate,
+                                               lowerTimelinePadding
+                                               + yTranslate
+                                               + vPos))
+        bottomTimeLine.draw(surface,
+                            start=datetime.datetime(*start),
+                            timeframe=datetime.timedelta(days=timeframe))
 def examples():
     m2, m3 = milestone(2), milestone(3)
     t2, t3 = task(2), task(3)
@@ -237,12 +250,12 @@ def examples():
           ("Task", "1E", (23, 2)))), # helper functions used below
         ("Heading 2",
          (t3("Task", 1, "2A", 10, 10, 10), # 3 ways to get duration=10
-          t3("Task", 1, "2B", 10, 5, 15),
+          t3("Task", 1, "2B\nnewline\nnewline\nnewline", 10, 5, 15),
           t3("Task", 1, "2C", 10),
           m3("Task", 2, "2D"),
           t3("Task", 3, "2E"))),
         ("Heading 3",
          (m3("Task", 1),)))
-    draw_all(title, annotations, tasks)
+    draw_all(title, annotations, tasks, start=(2020, 2, 15), timeframe=45)
 if __name__ == "__main__":
     examples()
