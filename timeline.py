@@ -56,7 +56,7 @@ class Surface:
                       scale * (height or self.height))
         return context
     def add_title(self, surface, title,
-                  font="Utopia", fontSize=0.04, translation=(0.1, 0.05)):
+                  font="Utopia", fontSize=0.04, translation=(0.17, 0.05)):
             context = surface.context()
             context.set_source_rgb(0, 0, 0)
             context.move_to(translation[0], translation[1])
@@ -161,11 +161,18 @@ class Tasks:
             self.context.line_to(self.xPositions[(end.day, end.month)],
                                  y - height - 5 * lineWidth)
             self.context.stroke()
-    def _set_task_text(self, text, annotation, x, y0, height, lineSpacing=1.5,
-                       padding=0.03):
+    def _set_task_text(self, text, annotation, x, y0, height,
+                       lineSpacing=1.5, padding=0.03, font="Yanone Kaffeesatz Thin"):
         self.context.set_source_rgb(0, 0, 0)
         y = y0
-        for line in (text + '\n' + annotation).splitlines():
+        lines = (text + '\n' + annotation).splitlines()
+
+        self.context.move_to(x, y)
+        self.context.show_text(lines[0])
+        y += height * lineSpacing
+        self.context.select_font_face(font, cairo.FONT_SLANT_NORMAL,
+                                      cairo.FONT_WEIGHT_NORMAL)
+        for line in lines[1:]:
             self.context.move_to(x, y)
             self.context.show_text(line)
             y += height * lineSpacing
