@@ -5,7 +5,7 @@ import datetime
 from dateutil.rrule import rrule, MONTHLY, DAILY
 class Annotation:
     def __init__(self, surface, annotations,
-                 font="FreeMono", fontSize=0.015,
+                 font="DejaVu Sans Mono", fontSize=0.015,
                  color=(1, 0, 0), lineWidth=0.001):
         self.context = surface.context()
         self.context.set_source_rgb(*color)
@@ -33,14 +33,19 @@ class Annotation:
 class Surface:
     def __init__(self, bgcolor=(1, 1, 1), fname="out",
                  # A3 @ 72 PPI (pixels)
-                 width=1191, height=842):
+                 width=1191, height=842, ftype="pdf"):
         self.width, self.height = width, height
         self.bgcolor = bgcolor
         self.surface = None
         self.fname = fname
+        self.ftype = ftype
     def __enter__(self):
-        self.surface = cairo.PDFSurface(self.fname + ".pdf",
-                                        self.width, self.height)
+        if self.ftype == 'svg':
+            self.surface = cairo.SVGSurface(self.fname + ".svg",
+                                            self.width, self.height)
+        else:
+            self.surface = cairo.PDFSurface(self.fname + ".pdf",
+                                            self.width, self.height)
         context = self.context()
         context.set_source_rgb(*self.bgcolor)
         context.paint()
@@ -56,7 +61,7 @@ class Surface:
                       scale * (height or self.height))
         return context
     def add_title(self, surface, title,
-                  font="FreeMono", fontSize=0.04, translation=(0.17, 0.05)):
+                  font="DejaVu Sans Mono", fontSize=0.04, translation=(0.17, 0.05)):
             context = surface.context()
             context.set_source_rgb(0, 0, 0)
             context.move_to(translation[0], translation[1])
@@ -96,7 +101,7 @@ class TimeLine:
                      for t in rrule(DAILY,
                                     dtstart=start,
                                     until=(start + timeframe))])
-    def draw(self, surface, font="FreeMono", fontSize=0.03,
+    def draw(self, surface, font="DejaVu Sans Mono", fontSize=0.03,
              lineWidth=0.003, lineColor=(0, 0, 0), textSep=0.01,
              coarseness=2, timeframe=datetime.timedelta(days=45),
              tickHeight=0.01, start=datetime.datetime(2020, 2, 15),
@@ -117,7 +122,7 @@ class TimeLine:
         return context
 class Tasks:
     def __init__(self, timeline, xPositions, heading, vPos=None,
-                 vPos0=0.05, headingFont="FreeMono",
+                 vPos0=0.05, headingFont="DejaVu Sans Mono",
                  headingFontSize=0.015):
         if vPos == None:
             vPos = vPos0
@@ -162,24 +167,27 @@ class Tasks:
                                  y - height - 5 * lineWidth)
             self.context.stroke()
     def _set_task_text(self, text, annotation, x, y0, height,
-                       lineSpacing=1.5, padding=0.03, font="FreeMono"):
+                       lineSpacing=1.5, padding=0.03, font="DejaVu Sans Mono",
+                       render=True):
         self.context.set_source_rgb(0, 0, 0)
         y = y0
         lines = (text + '\n' + annotation).splitlines()
 
         self.context.move_to(x, y)
-        self.context.show_text(lines[0])
+        if render:
+            self.context.show_text(lines[0])
         y += height * lineSpacing
         self.context.select_font_face(font, cairo.FONT_SLANT_NORMAL,
                                       cairo.FONT_WEIGHT_NORMAL)
         for line in lines[1:]:
             self.context.move_to(x, y)
-            self.context.show_text(line)
+            if render:
+                self.context.show_text(line)
             y += height * lineSpacing
         return y + padding
     def add_task(self, text, annotation, time, duration=0, milestone=False,
-                 vPos=None, vSpacing=0.05, font="FreeMono",
-                 lineWidth=0.001, taskFontSize=0.02, render="lines"):
+                 vPos=None, vSpacing=0.05, font="DejaVu Sans Mono",
+                 lineWidth=0.001, taskFontSize=0.015, render="lines"):
         self.context.select_font_face(font, cairo.FONT_SLANT_NORMAL,
                                       cairo.FONT_WEIGHT_BOLD if milestone else
                                       cairo.FONT_WEIGHT_NORMAL)
@@ -189,7 +197,8 @@ class Tasks:
                 self.context.text_extents(text.splitlines()[0])
         self.height = y + vSpacing
         if render == "lines":
-            self.height = self._set_task_text(text, annotation, x, y, height)
+            self.height = self._set_task_text(text, annotation, x, y, height,
+                                              render=False)
             self._set_task_line(time, duration, x, y, height, lineWidth,
                                 milestone)
         elif render == "text":
@@ -222,8 +231,8 @@ def task(month, yPos=None):
                                                             annotation)
 def draw_all(title, annotations, tasks, vPos0=0.05,
              xTranslate=0.25, yTranslate=0.25, lowerTimelinePadding=0.1,
-             start=(2020, 2, 15), timeframe=45):
-    with Surface() as surface:
+             start=(2020, 2, 15), timeframe=45, pdfOrSvg="pdf"):
+    with Surface(ftype=pdfOrSvg) as surface:
         surface = surface.add_title(surface, title)
         Annotation(surface, annotations)
         timeline = TimeLine(surface, translation=(xTranslate, yTranslate))
@@ -242,7 +251,7 @@ def draw_all(title, annotations, tasks, vPos0=0.05,
         bottomTimeLine.draw(surface,
                             start=datetime.datetime(*start),
                             timeframe=datetime.timedelta(days=timeframe))
-def examples():
+def examples(ftype="pdf"):
     m2, m3 = milestone(2), milestone(3)
     t2, t3 = task(2), task(3)
     title = "Timeline Title"
@@ -264,6 +273,8 @@ def examples():
           t3("Task", 3, "2E"))),
         ("Heading 3",
          (m3("Task", 1),)))
-    draw_all(title, annotations, tasks, start=(2020, 2, 15), timeframe=45)
+    draw_all(title, annotations, tasks, start=(2020, 2, 15), timeframe=45, 
+             pdfOrSvg=ftype)
 if __name__ == "__main__":
-    examples()
+    examples("pdf")
+    examples("svg")
