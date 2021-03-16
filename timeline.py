@@ -5,7 +5,7 @@ import datetime
 from dateutil.rrule import rrule, MONTHLY, DAILY
 class Annotation:
     def __init__(self, surface, annotations,
-                 font="DejaVu Sans Mono", fontSize=0.015,
+                 font="Roboto Thin", fontSize=0.015,
                  color=(1, 0, 0), lineWidth=0.001):
         self.context = surface.context()
         self.context.set_source_rgb(*color)
@@ -61,7 +61,7 @@ class Surface:
                       scale * (height or self.height))
         return context
     def add_title(self, surface, title,
-                  font="DejaVu Sans Mono", fontSize=0.04, translation=(0.17, 0.05)):
+                  font="Roboto Thin", fontSize=0.04, translation=(0.17, 0.05)):
             context = surface.context()
             context.set_source_rgb(0, 0, 0)
             context.move_to(translation[0], translation[1])
@@ -101,7 +101,7 @@ class TimeLine:
                      for t in rrule(DAILY,
                                     dtstart=start,
                                     until=(start + timeframe))])
-    def draw(self, surface, font="DejaVu Sans Mono", fontSize=0.03,
+    def draw(self, surface, font="Roboto Thin", fontSize=0.03,
              lineWidth=0.003, lineColor=(0, 0, 0), textSep=0.01,
              coarseness=2, timeframe=datetime.timedelta(days=45),
              tickHeight=0.01, start=datetime.datetime(2020, 2, 15),
@@ -122,7 +122,7 @@ class TimeLine:
         return context
 class Tasks:
     def __init__(self, timeline, xPositions, heading, vPos=None,
-                 vPos0=0.05, headingFont="DejaVu Sans Mono",
+                 vPos0=0.05, headingFont="Roboto Thin",
                  headingFontSize=0.015):
         if vPos == None:
             vPos = vPos0
@@ -167,7 +167,7 @@ class Tasks:
                                  y - height - 5 * lineWidth)
             self.context.stroke()
     def _set_task_text(self, text, annotation, x, y0, height,
-                       lineSpacing=1.5, padding=0.03, font="DejaVu Sans Mono",
+                       lineSpacing=1.5, padding=0.03, font="Roboto Thin",
                        render=True):
         self.context.set_source_rgb(0, 0, 0)
         y = y0
@@ -186,9 +186,10 @@ class Tasks:
             y += height * lineSpacing
         return y + padding
     def add_task(self, text, annotation, time, duration=0, milestone=False,
-                 vPos=None, vSpacing=0.05, font="DejaVu Sans Mono",
+                 vPos=None, vSpacing=0.05, font="Roboto Thin", milestoneFont="Roboto",
                  lineWidth=0.001, taskFontSize=0.015, render="lines"):
-        self.context.select_font_face(font, cairo.FONT_SLANT_NORMAL,
+        self.context.select_font_face(milestoneFont if milestone else font, 
+                                      cairo.FONT_SLANT_NORMAL,
                                       cairo.FONT_WEIGHT_BOLD if milestone else
                                       cairo.FONT_WEIGHT_NORMAL)
         self.context.set_font_size(taskFontSize * (1.2 if milestone else 1))
