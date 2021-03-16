@@ -5,7 +5,7 @@ import datetime
 from dateutil.rrule import rrule, MONTHLY, DAILY
 class Annotation:
     def __init__(self, surface, annotations,
-                 font="Yanone Kaffeesatz Thin", fontSize=0.015,
+                 font="FreeMono", fontSize=0.015,
                  color=(1, 0, 0), lineWidth=0.001):
         self.context = surface.context()
         self.context.set_source_rgb(*color)
@@ -39,7 +39,7 @@ class Surface:
         self.surface = None
         self.fname = fname
     def __enter__(self):
-        self.surface = cairo.SVGSurface(self.fname + ".svg",
+        self.surface = cairo.PDFSurface(self.fname + ".pdf",
                                         self.width, self.height)
         context = self.context()
         context.set_source_rgb(*self.bgcolor)
@@ -56,7 +56,7 @@ class Surface:
                       scale * (height or self.height))
         return context
     def add_title(self, surface, title,
-                  font="Utopia", fontSize=0.04, translation=(0.17, 0.05)):
+                  font="FreeMono", fontSize=0.04, translation=(0.17, 0.05)):
             context = surface.context()
             context.set_source_rgb(0, 0, 0)
             context.move_to(translation[0], translation[1])
@@ -96,7 +96,7 @@ class TimeLine:
                      for t in rrule(DAILY,
                                     dtstart=start,
                                     until=(start + timeframe))])
-    def draw(self, surface, font="Yanone Kaffeesatz Thin", fontSize=0.03,
+    def draw(self, surface, font="FreeMono", fontSize=0.03,
              lineWidth=0.003, lineColor=(0, 0, 0), textSep=0.01,
              coarseness=2, timeframe=datetime.timedelta(days=45),
              tickHeight=0.01, start=datetime.datetime(2020, 2, 15),
@@ -117,8 +117,8 @@ class TimeLine:
         return context
 class Tasks:
     def __init__(self, timeline, xPositions, heading, vPos=None,
-                 vPos0=0.05, headingFont="Yanone Kaffeesatz Bold",
-                 headingFontSize=0.025):
+                 vPos0=0.05, headingFont="FreeMono",
+                 headingFontSize=0.015):
         if vPos == None:
             vPos = vPos0
         self.maxHeight = self.height = self.vPos0 = vPos0
@@ -162,7 +162,7 @@ class Tasks:
                                  y - height - 5 * lineWidth)
             self.context.stroke()
     def _set_task_text(self, text, annotation, x, y0, height,
-                       lineSpacing=1.5, padding=0.03, font="Yanone Kaffeesatz Thin"):
+                       lineSpacing=1.5, padding=0.03, font="FreeMono"):
         self.context.set_source_rgb(0, 0, 0)
         y = y0
         lines = (text + '\n' + annotation).splitlines()
@@ -178,7 +178,7 @@ class Tasks:
             y += height * lineSpacing
         return y + padding
     def add_task(self, text, annotation, time, duration=0, milestone=False,
-                 vPos=None, vSpacing=0.05, font="Yanone Kaffeesatz Thin",
+                 vPos=None, vSpacing=0.05, font="FreeMono",
                  lineWidth=0.001, taskFontSize=0.02, render="lines"):
         self.context.select_font_face(font, cairo.FONT_SLANT_NORMAL,
                                       cairo.FONT_WEIGHT_BOLD if milestone else
@@ -197,9 +197,9 @@ class Tasks:
         if self.height > self.maxHeight:
             self.maxHeight = self.height
         return self.maxHeight
-def fix_month(month, milestone):
+def fix_month(month, milestone, yPos=None):
     return lambda expected=None, pessimistic=None, optimistic=None: \
-           lambda name, date, annotation="", vPos=None: (name, annotation,
+           lambda name, date, annotation="", vPos=yPos: (name, annotation,
                                                          (date, month),
                                                          ((pessimistic
                                                            or expected
@@ -210,15 +210,16 @@ def fix_month(month, milestone):
                                                              or 0)) / 6,
                                                          milestone,
                                                          vPos)
-def milestone(month):
-    return fix_month(month, True)()
-def task(month):
-    return lambda name, date, annotation="", \
-                  expected=None, pessimistic=None, optimistic=None, vPos=None: \
-                  fix_month(month, False)(expected,
-                                          pessimistic,
-                                          optimistic)(name, date, annotation,
-                                                      vPos)
+def milestone(month, yPos=None):
+    return fix_month(month, True, yPos)()
+def task(month, yPos=None):
+    return lambda name, date, annotation="",       \
+                  expected=None, pessimistic=None, \
+                  optimistic=None, vPos=None:      \
+                  fix_month(month, False, yPos)(expected,
+                                                pessimistic,
+                                                optimistic)(name, date,
+                                                            annotation)
 def draw_all(title, annotations, tasks, vPos0=0.05,
              xTranslate=0.25, yTranslate=0.25, lowerTimelinePadding=0.1,
              start=(2020, 2, 15), timeframe=45):
