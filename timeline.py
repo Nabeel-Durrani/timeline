@@ -61,7 +61,7 @@ class Surface:
                       scale * (height or self.height))
         return context
     def add_title(self, surface, title,
-                  font="Roboto Thin", fontSize=0.04, translation=(0.17, 0.05)):
+                  font="Roboto", fontSize=0.04, translation=(0.17, 0.05)):
             context = surface.context()
             context.set_source_rgb(0, 0, 0)
             context.move_to(translation[0], translation[1])
@@ -122,7 +122,7 @@ class TimeLine:
         return context
 class Tasks:
     def __init__(self, timeline, xPositions, heading, vPos=None,
-                 vPos0=0.05, headingFont="Roboto Thin",
+                 vPos0=0.05, headingFont="Roboto",
                  headingFontSize=0.015):
         if vPos == None:
             vPos = vPos0
@@ -186,13 +186,14 @@ class Tasks:
             y += height * lineSpacing
         return y + padding
     def add_task(self, text, annotation, time, duration=0, milestone=False,
-                 vPos=None, vSpacing=0.05, font="Roboto Thin", milestoneFont="Roboto",
+                 vPos=None, vSpacing=0.05, font="Roboto Thin", 
+                 milestoneFont="Roboto",
                  lineWidth=0.001, taskFontSize=0.015, render="lines"):
         self.context.select_font_face(milestoneFont if milestone else font, 
                                       cairo.FONT_SLANT_NORMAL,
                                       cairo.FONT_WEIGHT_BOLD if milestone else
                                       cairo.FONT_WEIGHT_NORMAL)
-        self.context.set_font_size(taskFontSize * (1.2 if milestone else 1))
+        self.context.set_font_size(taskFontSize * (1.3 if milestone else 1))
         x, y = self.xPositions[time], vPos or self.height
         xbearing, ybearing, width, height, dx, dy = \
                 self.context.text_extents(text.splitlines()[0])
@@ -231,12 +232,16 @@ def task(month, yPos=None):
                                                 optimistic)(name, date,
                                                             annotation)
 def draw_all(title, annotations, tasks, vPos0=0.05,
-             xTranslate=0.25, yTranslate=0.25, lowerTimelinePadding=0.1,
-             start=(2020, 2, 15), timeframe=45, pdfOrSvg="pdf"):
+             xTranslate=0.25, yTranslate=0.25, yTranslateNoTitle=0.1,
+             lowerTimelinePadding=0.1, start=(2020, 2, 15), timeframe=45, 
+             pdfOrSvg="pdf"):
     with Surface(ftype=pdfOrSvg) as surface:
         surface = surface.add_title(surface, title)
         Annotation(surface, annotations)
-        timeline = TimeLine(surface, translation=(xTranslate, yTranslate))
+        timeline = TimeLine(surface, 
+                            translation=(xTranslate, 
+                                         yTranslateNoTitle 
+                                         if title == "" else yTranslate))
         xPositions = timeline.draw(surface,
                                    start=datetime.datetime(*start),
                                    timeframe=datetime.timedelta(days=timeframe))
@@ -247,7 +252,8 @@ def draw_all(title, annotations, tasks, vPos0=0.05,
         bottomTimeLine = TimeLine(surface,
                                   translation=(xTranslate,
                                                lowerTimelinePadding
-                                               + yTranslate
+                                               + (yTranslateNoTitle 
+                                                  if title == "" else yTranslate)
                                                + vPos))
         bottomTimeLine.draw(surface,
                             start=datetime.datetime(*start),
