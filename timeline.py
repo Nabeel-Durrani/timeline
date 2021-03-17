@@ -66,7 +66,7 @@ class Surface:
             context.set_source_rgb(0, 0, 0)
             context.move_to(translation[0], translation[1])
             context.select_font_face(font,
-                                     cairo.FONT_SLANT_ITALIC,
+                                     cairo.FONT_SLANT_NORMAL,
                                      cairo.FONT_WEIGHT_BOLD)
             context.set_font_size(fontSize)
             context.show_text(title)
@@ -177,7 +177,7 @@ class Tasks:
         if render:
             self.context.show_text(lines[0])
         y += height * lineSpacing
-        self.context.select_font_face(font, cairo.FONT_SLANT_NORMAL,
+        self.context.select_font_face(font, cairo.FONT_SLANT_ITALIC,
                                       cairo.FONT_WEIGHT_NORMAL)
         for line in lines[1:]:
             self.context.move_to(x, y)
